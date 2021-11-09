@@ -26,9 +26,23 @@ RH_RF95 rf95(LORA_CS, LORA_IRQ, sx1278_spi);
 #define SCREEN_WIDTH 128 // OLED display width, in pixels
 #define SCREEN_HEIGHT 64 // OLED display height, in pixels
 
+//Button definitions
+#define BUTTON_PIN  32
+#define DEBOUNCE_TIME  50 
+
+int lastSteadyState = LOW;       // the previous steady state from the input pin
+int lastFlickerableState = LOW;  // the previous flickerable state from the input pin
+int currentState;                // the current reading from the input pin
+
+unsigned long lastDebounceTime = 0;  // the last time the output pin was toggled
+
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RST);
 
+
+
 void setup() {
+    //Button
+    pinMode(BUTTON_PIN, INPUT_PULLUP);
       //reset OLED display via software
     pinMode(OLED_RST, OUTPUT);
     digitalWrite(OLED_RST, LOW);
@@ -90,28 +104,60 @@ uint8_t send_counter = 0;
 String  hello = "Hello World";
 void loop() {
 
+  currentState = digitalRead(BUTTON_PIN);
+
+  // check to see if you just pressed the button
+  // (i.e. the input went from LOW to HIGH), and you've waited long enough
+  // since the last press to ignore any noise:
+
+  // If the switch/button changed, due to noise or pressing:
+  if (currentState != lastFlickerableState) {
+    // reset the debouncing timer
+    lastDebounceTime = millis();
+    // save the the last flickerable state
+    lastFlickerableState = currentState;
+  }
+
+  if ((millis() - lastDebounceTime) > DEBOUNCE_TIME) {
+    // whatever the reading is at, it's been there for longer than the debounce
+    // delay, so take it as the actual current state:
+
+    // if the button state has changed:
+    if(lastSteadyState == HIGH && currentState == LOW)
+      sendState(true);
+    else if(lastSteadyState == LOW && currentState == HIGH)
+      sendState(false);
+
+    // save the the last steady state
+    lastSteadyState = currentState;
+  }
+
+  
+
+}
+
+void sendState(bool isOn){
+  String message = "";
+  if(isOn == true){
   Serial.println("Sending to rf95_server");
   // Send a message to rf95_server
-  String message = hello + send_counter;
+    message = hello + "5";
+  } else {
+    message = hello + "10";
+  }
+  
   uint8_t data[message.length()+1];
   message.getBytes(data, message.length()+1);
   rf95.send(data, sizeof(data));
-  
-  send_counter = send_counter + 1;
-  if(send_counter > 10){
-    send_counter = 0;
-  }
-  
+    
   rf95.waitPacketSent();  
- display.clearDisplay();
-   display.setCursor(0,0);
-   display.print("BEEKEEPA..");
-   display.setCursor(0,20);
-   display.print("Sent packet");
-   display.setCursor(0,30);
-   display.print(message);
-   display.display();  
-  
-  delay(2000);
-
+  display.clearDisplay();
+  display.setCursor(0,0);
+  display.print("BEEKEEPA..");
+  display.setCursor(0,20);
+  display.print("Sent packet");
+  display.setCursor(0,30);
+  display.print(message);
+  display.display();    
+  delay(100);  
 }
