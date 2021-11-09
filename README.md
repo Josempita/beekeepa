@@ -18,3 +18,7 @@ TIGO Lora32-OLED v1
 basically an esp32 based board
 
 
+libraries on google drive
+===============================
+https://drive.google.com/drive/folders/1bzXWFqtobCVaSvprRMlSJRYMH9lUQDHk?usp=sharing
+
